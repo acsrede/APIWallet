@@ -1,22 +1,31 @@
 package com.wallet.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.Optional;
+
+import javax.validation.ConstraintViolationException;
 
 import com.wallet.entity.Wallet;
 import com.wallet.entity.WalletItem;
 import com.wallet.util.TypeEnum;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.junit4.SpringRunner;
 
+@RunWith(SpringRunner.class)
 @SpringBootTest
+@ActiveProfiles("test")
 public class WalletItemRepositoryTest {
 
   private static final Date DATE = new Date();
@@ -32,7 +41,7 @@ public class WalletItemRepositoryTest {
   @Autowired
   private WalletRepository walletRepository;
 
-  @BeforeEach
+  @Before
   public void setUp() {
     Wallet wallet = new Wallet();
     wallet.setName("Carteira Teste");
@@ -45,14 +54,14 @@ public class WalletItemRepositoryTest {
     savedWalletId = wallet.getId();
   }
 
-  @AfterEach
+  @After
   public void tearDown() {
     walletItemRepository.deleteAll();
     walletRepository.deleteAll();
   }
 
   @Test
-  public void testSavw() {
+  public void testSave() {
 
     Wallet wallet = new Wallet();
     wallet.setName("Carteira 1");
@@ -69,4 +78,30 @@ public class WalletItemRepositoryTest {
     
   }
 
+  @Test(expected = ConstraintViolationException.class)
+  public void TestSaveInvalidWalletItem() {
+    WalletItem walletItem = new WalletItem(null, null, DATE, null, DESCRIPTION, null);
+    walletItemRepository.save(walletItem);
+  }
+
+  @Test
+  public void testUpdate() {
+    Optional<WalletItem> walletItem = walletItemRepository.findById(savedWalletItemId);
+    String description = "Descrição alterada";
+    WalletItem changed = walletItem.get();
+    changed.setDescription(description);
+    walletItemRepository.save(changed);
+    Optional<WalletItem> newWalletItem = walletItemRepository.findById(savedWalletItemId);
+    assertEquals(description, newWalletItem.get().getDescription());
+  }
+
+  @Test
+  public void deleteWalletItem() {
+    Optional<Wallet> wallet = walletRepository.findById(savedWalletId);
+    WalletItem walletItem = new WalletItem(null, wallet.get(), DATE, TYPE, DESCRIPTION, VALUE);
+    walletItemRepository.save(walletItem);
+    walletItemRepository.deleteById(walletItem.getId());
+    Optional<WalletItem> response = walletItemRepository.findById(walletItem.getId());
+    assertFalse(response.isPresent());
+  }
 }
